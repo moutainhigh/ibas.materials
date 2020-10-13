@@ -435,37 +435,27 @@ namespace materials {
                                                                                     type: ibas.emMessageType.WARNING
                                                                                 }); return;
                                                                             }
-                                                                            ibas.files.open((files) => {
-                                                                                let require: Require = ibas.requires.create({
-                                                                                    context: ibas.requires.naming(materials.CONSOLE_NAME),
-                                                                                });
-                                                                                require([
-                                                                                    "3rdparty/papaparse/papaparse.min"
-                                                                                ], function (Papa: any): void {
-                                                                                    Papa.parse(files.firstOrDefault(), {
-                                                                                        complete(results: Papa.ParseResult, file?: File): void {
-                                                                                            that.tablePrices.setModel(null);
-                                                                                            let datas: bo.MaterialPrice[] = sap.extension.tables.parseObject(
-                                                                                                that.tablePrices, results.data, bo.MaterialPrice);
-                                                                                            datas.forEach(c => c.source = String(priceList.objectKey));
-                                                                                            that.showPrices(datas);
-                                                                                        },
-                                                                                        error(error: Papa.ParseError, file?: File): void {
-                                                                                            that.application.viewShower.messages({
-                                                                                                title: that.application.description,
-                                                                                                message: error.message,
-                                                                                                type: ibas.emMessageType.ERROR
-                                                                                            });
-                                                                                        }
-                                                                                    });
-                                                                                }, function (error: RequireError): void {
-                                                                                    that.application.viewShower.messages({
-                                                                                        title: that.application.description,
-                                                                                        message: error.message,
-                                                                                        type: ibas.emMessageType.ERROR
-                                                                                    });
-                                                                                });
-                                                                            }, { accept: ".csv" });
+
+                                                                            ibas.servicesManager.runApplicationService<any, ibas.DataTable>({
+                                                                                proxy: new importexport.app.FileParsingServiceProxy({
+                                                                                    outType: "array"
+                                                                                }),
+                                                                                onCompleted(result: any): void {
+                                                                                    try {
+                                                                                        that.tablePrices.setModel(null);
+                                                                                        let datas: bo.MaterialPrice[] =
+                                                                                            sap.extension.tables.parseObject(that.tablePrices, result, bo.MaterialPrice);
+                                                                                        datas.forEach(c => c.source = String(priceList.objectKey));
+                                                                                        that.showPrices(datas);
+                                                                                    } catch (error) {
+                                                                                        that.application.viewShower.messages({
+                                                                                            title: that.application.description,
+                                                                                            message: error.message,
+                                                                                            type: ibas.emMessageType.ERROR
+                                                                                        });
+                                                                                    }
+                                                                                }
+                                                                            });
                                                                         }
                                                                     }),
                                                                 ],
@@ -685,84 +675,46 @@ namespace materials {
                 }
                 /** 保存数据 */
                 savePrices(datas: bo.MaterialPrice[]): void {
-                    let builder: StringBuilder = new StringBuilder();
-                    builder.append(
-                        ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", bo.MaterialPrice.name.toLowerCase(), bo.MaterialPrice.PROPERTY_ITEMCODE_NAME.toLowerCase())));
-                    builder.separator();
-                    builder.append(
-                        ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", bo.MaterialPrice.name.toLowerCase(), bo.MaterialPrice.PROPERTY_ITEMNAME_NAME.toLowerCase())));
-                    builder.separator();
-                    builder.append(
-                        ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", bo.MaterialPrice.name.toLowerCase(), bo.MaterialPrice.PROPERTY_ITEMSIGN_NAME.toLowerCase())));
-                    builder.separator();
-                    builder.append(
-                        ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", bo.MaterialPrice.name.toLowerCase(), bo.MaterialPrice.PROPERTY_PRICE_NAME.toLowerCase())));
-                    builder.separator();
-                    builder.append(
-                        ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", bo.MaterialPrice.name.toLowerCase(), bo.MaterialPrice.PROPERTY_CURRENCY_NAME.toLowerCase())));
-                    builder.newLine();
-                    for (let item of datas) {
-                        builder.append(item.itemCode);
-                        builder.separator();
-                        builder.append(item.itemName);
-                        builder.separator();
-                        builder.append(item.itemSign);
-                        builder.separator();
-                        builder.append(item.price);
-                        builder.separator();
-                        builder.append(item.currency);
-                        builder.newLine();
-                    }
-                    jQuery.sap.require("sap.ui.core.util.File");
-                    let fileName: string = ibas.dates.toString(ibas.dates.now(), "yyyyMMddHHmm");
-                    let priceList: bo.MaterialPriceList = this.tablePriceList.getSelecteds<bo.MaterialPriceList>().firstOrDefault();
-                    if (!ibas.objects.isNull(priceList)) {
-                        fileName = ibas.strings.format("{0}_{1}_{2}", priceList.objectKey, priceList.name, fileName);
-                    }
-                    sap.ui.core.util.File.save(builder.toString(), fileName, "csv", "text/csv", "utf-8", true);
-                }
-            }
-            class StringBuilder extends ibas.StringBuilder {
-                static NEW_LINE: string = function (): string {
-                    if (navigator.appVersion) {
-                        if (navigator.appVersion.indexOf("Windows") > 0) {
-                            return "\r\n";
-                        } else if (navigator.appVersion.indexOf("Mac OS") > 0) {
-                            return "\r";
-                        }
-                        return "\n";
-                    }
-                }();
-                static SEPARATOR: string = ",";
+                    let table: ibas.DataTable;
+                    let column: ibas.DataTableColumn;
 
-                constructor() {
-                    super();
-                    this.map(undefined, "");
-                    this.map(null, "");
-                }
-                /**
-                 * 添加字符
-                 */
-                append(value: any): void {
-                    if (typeof value === "string") {
-                        if (value.indexOf("\"") >= 0) {
-                            value = ibas.strings.replace(value, "\"", "\"\"");
+                    table = new ibas.DataTable();
+                    table.name = bo.MaterialPrice.name;
+                    table.description = ibas.i18n.prop(ibas.strings.format("bo_{0}", bo.MaterialPrice.name).toLowerCase());
+                    column = new ibas.DataTableColumn();
+                    column.name = bo.MaterialPrice.PROPERTY_ITEMCODE_NAME;
+                    column.description = ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", table.name, column.name).toLowerCase());
+                    table.columns.add(column);
+                    column = new ibas.DataTableColumn();
+                    column.name = bo.MaterialPrice.PROPERTY_ITEMNAME_NAME;
+                    column.description = ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", table.name, column.name).toLowerCase());
+                    table.columns.add(column);
+                    column = new ibas.DataTableColumn();
+                    column.name = bo.MaterialPrice.PROPERTY_ITEMSIGN_NAME;
+                    column.description = ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", table.name, column.name).toLowerCase());
+                    table.columns.add(column);
+                    column = new ibas.DataTableColumn();
+                    column.name = bo.MaterialPrice.PROPERTY_PRICE_NAME;
+                    column.description = ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", table.name, column.name).toLowerCase());
+                    table.columns.add(column);
+                    column = new ibas.DataTableColumn();
+                    column.name = bo.MaterialPrice.PROPERTY_CURRENCY_NAME;
+                    column.description = ibas.i18n.prop(ibas.strings.format("bo_{0}_{1}", table.name, column.name).toLowerCase());
+                    table.columns.add(column);
+
+                    for (let item of datas) {
+                        let row: ibas.DataTableRow = new ibas.DataTableRow();
+                        for (let col of table.columns) {
+                            row.cells.add(item[col.name]);
                         }
-                        value = "\"" + value + "\"";
+                        table.rows.add(row);
                     }
-                    super.append(value);
-                }
-                /**
-                 * 新行
-                 */
-                newLine(): void {
-                    super.append(StringBuilder.NEW_LINE);
-                }
-                /**
-                 * 分隔
-                 */
-                separator(): void {
-                    super.append(StringBuilder.SEPARATOR);
+
+                    ibas.servicesManager.runApplicationService({
+                        proxy: new importexport.app.DataTableServiceProxy({
+                            data: table
+                        }),
+                    });
                 }
             }
         }

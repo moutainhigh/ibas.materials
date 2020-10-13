@@ -139,7 +139,7 @@ namespace materials {
                                                 let end: number = specification ? specification.indexOf("]") : -1;
                                                 if (begin > 0 && end > begin) {
                                                     specification = specification.substring(begin + 1, end);
-                                                    if (parseInt(specification) > 0) {
+                                                    if (parseInt(specification, 10) > 0) {
                                                         source.setIntroActive(false);
                                                         let criteria: ibas.ICriteria = new ibas.Criteria();
                                                         let condition: ibas.ICondition = criteria.conditions.create();
@@ -284,7 +284,7 @@ namespace materials {
                                                 let end: number = specification ? specification.indexOf("]") : -1;
                                                 if (begin > 0 && end > begin) {
                                                     specification = specification.substring(begin + 1, end);
-                                                    if (parseInt(specification) > 0) {
+                                                    if (parseInt(specification, 10) > 0) {
                                                         source.setIntroActive(false);
                                                         let criteria: ibas.ICriteria = new ibas.Criteria();
                                                         let condition: ibas.ICondition = criteria.conditions.create();

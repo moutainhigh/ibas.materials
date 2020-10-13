@@ -122,12 +122,13 @@ namespace materials {
             /** 初始化 */
             protected registers(): void {
                 // 注册服务应用
+                this.register(new ProductChooseServiceMapping());
                 this.register(new MaterialChooseServiceMapping());
                 this.register(new WarehouseChooseServiceMapping());
-                this.register(new ProductChooseServiceMapping());
-                this.register(new MaterialPriceListChooseServiceMapping);
+                this.register(new MaterialGroupChooseServiceMapping());
                 this.register(new MaterialSerialChooseServiceMapping);
                 this.register(new MaterialBatchChooseServiceMapping);
+                this.register(new MaterialPriceListChooseServiceMapping);
             }
         }
     }
